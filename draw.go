@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func drawFractal(fractalType string, maxIter int, juliaCR float64, juliaCI float64, mandelbrotPower float64) {
+func drawFractal(settings FractalSettings) {
 	var output strings.Builder
 	for j := 0; j < height; j++ {
 		for i := 0; i < width; i++ {
@@ -14,27 +14,58 @@ func drawFractal(fractalType string, maxIter int, juliaCR float64, juliaCI float
 			y := yMin + (yMax-yMin)*float64(j)/float64(height)
 
 			var iter int
-			switch fractalType {
+			switch settings.fractalType {
 			case "mandelbrot", "m":
-				iter = mandelbrot(x, y, mandelbrotPower, maxIter)
+				settings.fractalType = "mandelbrot"
+				iter = mandelbrot(x, y, settings.mandelbrotPower, settings.maxIter)
 			case "julia", "j":
-				iter = julia(x, y, juliaCR, juliaCI, maxIter)
+				settings.fractalType = "julia"
+				iter = julia(x, y, settings.juliaCR, settings.juliaCI, settings.maxIter)
 			case "burningship", "b":
-				iter = burningShip(x, y, maxIter)
+				settings.fractalType = "burningship"
+				iter = burningShip(x, y, settings.maxIter)
 			case "tricorn", "t":
-				iter = tricorn(x, y, maxIter)
+				settings.fractalType = "tricorn"
+				iter = tricorn(x, y, settings.maxIter)
 			default:
-				fmt.Println("Unknown fractal type:", fractalType)
+				fmt.Println("Unknown fractal type:", settings.fractalType)
 				flag.Usage()
 				return
 			}
-			output.WriteRune(getIterChar(iter, maxIter))
+			output.WriteRune(getIterChar(iter, settings.maxIter))
 		}
 		output.WriteRune('\n')
 	}
 
-	fmt.Print("\033[H\033[2J") // Clears the terminal
+	// Clear the screen without affecting the scrollback buffer
+	fmt.Print("\033[H\033[J")
+	printHeader(settings)
 	fmt.Print(output.String())
+	printControls()
+}
+
+func printControls() {
+	if hideUI {
+		fmt.Printf("\n\n")
+		return
+	}
+	fmt.Println("Controls: [k][w] up, [j][s] down, [h][a] left, [l][d] right, [+][=] zoom in, [-] zoom out")
+	fmt.Println("Press [u] to hide UI")
+}
+
+func printHeader(settings FractalSettings) {
+	if hideUI {
+		fmt.Printf("\n\n")
+		return
+	}
+	fmt.Printf("Fractal: %s | Iterations: %d", settings.fractalType, settings.maxIter)
+	if settings.fractalType == "mandelbrot" {
+		fmt.Printf(" | Mandelbrot Power: %f", settings.mandelbrotPower)
+	}
+	if settings.fractalType == "julia" {
+		fmt.Printf(" | julia CR: %f, CI: %f", settings.juliaCR, settings.juliaCI)
+	}
+	fmt.Printf("\nxMin: %f, xMax: %f, yMin: %f, yMax: %f\n", xMin, xMax, yMin, yMax)
 }
 
 func getIterChar(iter, maxIter int) rune {

@@ -27,18 +27,24 @@ var (
 	// Terminal mode
 	termiosBackup syscall.Termios
 
-	// Fractal math
+	// Complex mapping
 	xMin, xMax = -2.0, 1.0
 	yMin, yMax = -1.5, 1.5
+
+	// UI
+	hideUI = false
 )
 
+type FractalSettings struct {
+	fractalType     string
+	maxIter         int
+	juliaCR         float64
+	juliaCI         float64
+	mandelbrotPower float64
+}
+
 func main() {
-	fractalType := flag.String("f", "mandelbrot", "Fractal type: [m]andelbrot, [j]ulia, [b]urningship, or [t]ricorn.")
-	maxIter := flag.Int("i", defaultMaxIter, "Maximum number of iterations.")
-	juliaCR := flag.Float64("jr", -0.7, "Real part of the constant for Julia set.")
-	juliaCI := flag.Float64("ji", 0.27015, "Imaginary part of the constant for Julia set.")
-	mandelbrotPower := flag.Float64("p", 2, "Power for the Mandelbrot ('Multibrot') set.")
-	flag.Parse()
+	settings := parseArgs()
 
 	enableRawModeTTY()
 	defer disableRawModeTTY()
@@ -51,13 +57,13 @@ func main() {
 		os.Exit(0)
 	}()
 
+	// Setup input handling
 	fd := int(os.Stdin.Fd())
 	syscall.SetNonblock(fd, true)
-
-	buf := make([]byte, 1) // Buffer for reading single bytes
+	buf := make([]byte, 1)
 
 	// Initial fractal draw
-	drawFractal(*fractalType, *maxIter, *juliaCR, *juliaCI, *mandelbrotPower)
+	drawFractal(settings)
 
 	for {
 		// Read a single byte (key press)
@@ -101,12 +107,31 @@ func main() {
 			xRange, yRange := (xMax-xMin)*(zoomFactor-1), (yMax-yMin)*(zoomFactor-1)
 			xMin, xMax = xMin-xRange, xMax+xRange
 			yMin, yMax = yMin-yRange, yMax+yRange
+		case 'u':
+			hideUI = !hideUI
 		case 'q': // Exit
 			return
 		default: // Invalid keypress, no need to redraw
 			continue
 		}
 
-		drawFractal(*fractalType, *maxIter, *juliaCR, *juliaCI, *mandelbrotPower)
+		drawFractal(settings)
+	}
+}
+
+func parseArgs() (settings FractalSettings) {
+	fractalType := flag.String("f", "mandelbrot", "Fractal type: [m]andelbrot, [j]ulia, [b]urningship, or [t]ricorn.")
+	maxIter := flag.Int("i", defaultMaxIter, "Maximum number of iterations.")
+	juliaCR := flag.Float64("jr", -0.7, "Real part of the constant for Julia set.")
+	juliaCI := flag.Float64("ji", 0.27015, "Imaginary part of the constant for Julia set.")
+	mandelbrotPower := flag.Float64("p", 2, "Power for the Mandelbrot ('Multibrot') set.")
+	flag.Parse()
+
+	return FractalSettings{
+		fractalType:     *fractalType,
+		maxIter:         *maxIter,
+		juliaCR:         *juliaCR,
+		juliaCI:         *juliaCI,
+		mandelbrotPower: *mandelbrotPower,
 	}
 }
