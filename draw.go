@@ -50,7 +50,7 @@ func printControls() {
 		return
 	}
 	fmt.Println("Controls: [k][w] up, [j][s] down, [h][a] left, [l][d] right, [+][=] zoom in, [-] zoom out")
-	fmt.Println("Press [u] to hide UI")
+	fmt.Println("Press [u] to hide UI, [q] to quit")
 }
 
 func printHeader(settings FractalSettings) {
