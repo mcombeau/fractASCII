@@ -3,21 +3,36 @@ package main
 import (
 	"flag"
 	"fmt"
-	"strings"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 const (
-	width          = 80
-	height         = 40
+	// Rendering
+	width  = 80
+	height = 40
+	chars  = " .:-=+*#%@"
+
+	// Fractal math
 	defaultMaxIter = 50
-	xMin, xMax     = -2.0, 1.0
-	yMin, yMax     = -1.5, 1.5
-	chars          = " .:-=+*#%@"
+
+	// Camera
+	zoomFactor = 1.1
+	panFactor  = 0.1
+)
+
+var (
+	// Terminal mode
+	termiosBackup syscall.Termios
+
+	// Fractal math
+	xMin, xMax = -2.0, 1.0
+	yMin, yMax = -1.5, 1.5
 )
 
 func main() {
-	var output strings.Builder
-
 	fractalType := flag.String("f", "mandelbrot", "Fractal type: [m]andelbrot, [j]ulia, [b]urningship, or [t]ricorn.")
 	maxIter := flag.Int("i", defaultMaxIter, "Maximum number of iterations.")
 	juliaCR := flag.Float64("jr", -0.7, "Real part of the constant for Julia set.")
@@ -25,37 +40,73 @@ func main() {
 	mandelbrotPower := flag.Float64("p", 2, "Power for the Mandelbrot ('Multibrot') set.")
 	flag.Parse()
 
-	for j := 0; j < height; j++ {
-		for i := 0; i < width; i++ {
-			x := xMin + (xMax-xMin)*float64(i)/float64(width)
-			y := yMin + (yMax-yMin)*float64(j)/float64(height)
+	enableRawModeTTY()
+	defer disableRawModeTTY()
 
-			var iter int
-			switch *fractalType {
-			case "mandelbrot", "m":
-				iter = mandelbrot(x, y, *mandelbrotPower, *maxIter)
-			case "julia", "j":
-				iter = julia(x, y, *juliaCR, *juliaCI, *maxIter)
-			case "burningship", "b":
-				iter = burningShip(x, y, *maxIter)
-			case "tricorn", "t":
-				iter = tricorn(x, y, *maxIter)
-			default:
-				fmt.Println("Unknown fractal type:", *fractalType)
-				flag.Usage()
-				return
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt)
+	go func() {
+		<-c
+		disableRawModeTTY()
+		os.Exit(0)
+	}()
+
+	fd := int(os.Stdin.Fd())
+	syscall.SetNonblock(fd, true)
+
+	buf := make([]byte, 1) // Buffer for reading single bytes
+
+	// Initial fractal draw
+	drawFractal(*fractalType, *maxIter, *juliaCR, *juliaCI, *mandelbrotPower)
+
+	for {
+		// Read a single byte (key press)
+		n, err := syscall.Read(fd, buf)
+		if err != nil {
+			if err == syscall.EAGAIN { // No input, continue without redrawing
+				time.Sleep(50 * time.Millisecond)
+				continue
+			} else {
+				fmt.Println("Error reading key:", err)
+				break
 			}
-			output.WriteRune(getIterChar(iter, *maxIter))
 		}
-		output.WriteRune('\n')
-	}
 
-	fmt.Print(output.String())
-}
+		if n <= 0 { // No bytes read, nothing to do
+			continue
+		}
 
-func getIterChar(iter, maxIter int) rune {
-	if iter >= maxIter {
-		iter = maxIter - 1
+		// A key was pressed, redraw
+		switch buf[0] {
+		case 'k', 'w': // Up
+			yMin -= panFactor * (yMax - yMin)
+			yMax -= panFactor * (yMax - yMin)
+		case 'j', 's': // Down
+			yMin += panFactor * (yMax - yMin)
+			yMax += panFactor * (yMax - yMin)
+		case 'h', 'a': // Left
+			xMin -= panFactor * (xMax - xMin)
+			xMax -= panFactor * (xMax - xMin)
+		case 'l', 'd': // Right
+			xMin += panFactor * (xMax - xMin)
+			xMax += panFactor * (xMax - xMin)
+		case '+', '=': // Zoom in
+			centerX := (xMin + xMax) / 2
+			centerY := (yMin + yMax) / 2
+			xRange := (xMax - xMin) / zoomFactor
+			yRange := (yMax - yMin) / zoomFactor
+			xMin, xMax = centerX-xRange/2, centerX+xRange/2
+			yMin, yMax = centerY-yRange/2, centerY+yRange/2
+		case '-': // Zoom out
+			xRange, yRange := (xMax-xMin)*(zoomFactor-1), (yMax-yMin)*(zoomFactor-1)
+			xMin, xMax = xMin-xRange, xMax+xRange
+			yMin, yMax = yMin-yRange, yMax+yRange
+		case 'q': // Exit
+			return
+		default: // Invalid keypress, no need to redraw
+			continue
+		}
+
+		drawFractal(*fractalType, *maxIter, *juliaCR, *juliaCI, *mandelbrotPower)
 	}
-	return rune(chars[iter*len(chars)/maxIter])
 }
