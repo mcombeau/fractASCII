@@ -18,11 +18,11 @@ const (
 func main() {
 	var output strings.Builder
 
-	fractalType := flag.String("f", "mandelbrot", "Fractal type:\n\tm, mandelbrot (default),\n\tj, julia,\n\tb, burningship,\n\tx, multibrot\n\tt, tricorn.")
+	fractalType := flag.String("f", "mandelbrot", "Fractal type: [m]andelbrot, [j]ulia, [b]urningship, or [t]ricorn.")
 	maxIter := flag.Int("i", defaultMaxIter, "Maximum number of iterations.")
-	juliaCReal := flag.Float64("jr", -0.7, "Real part of the constant for Julia set.")
-	juliaCImag := flag.Float64("ji", 0.27015, "Imaginary part of the constant for Julia set.")
-	multibrotPower := flag.Float64("p", 3, "Power for the Multibrot set.")
+	juliaCR := flag.Float64("jr", -0.7, "Real part of the constant for Julia set.")
+	juliaCI := flag.Float64("ji", 0.27015, "Imaginary part of the constant for Julia set.")
+	mandelbrotPower := flag.Float64("p", 2, "Power for the Mandelbrot ('Multibrot') set.")
 	flag.Parse()
 
 	for j := 0; j < height; j++ {
@@ -33,13 +33,11 @@ func main() {
 			var iter int
 			switch *fractalType {
 			case "mandelbrot", "m":
-				iter = mandelbrot(x, y, *maxIter)
+				iter = mandelbrot(x, y, *mandelbrotPower, *maxIter)
 			case "julia", "j":
-				iter = julia(x, y, *juliaCReal, *juliaCImag, *maxIter)
+				iter = julia(x, y, *juliaCR, *juliaCI, *maxIter)
 			case "burningship", "b":
 				iter = burningShip(x, y, *maxIter)
-			case "multibrot", "x":
-				iter = multibrot(x, y, *multibrotPower, *maxIter)
 			case "tricorn", "t":
 				iter = tricorn(x, y, *maxIter)
 			default:

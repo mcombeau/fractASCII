@@ -2,10 +2,14 @@ package main
 
 import "math"
 
-func mandelbrot(x, y float64, maxIter int) int {
+// The Mandelbrot set can be "power"ed up. Power of 2 is the original Mandelbrot set.
+// Other powers are often referred to as the "Multibrot" set.
+func mandelbrot(x, y float64, power float64, maxIter int) int {
 	zR, zI := 0.0, 0.0
 	for i := 0; i < maxIter; i++ {
-		zR, zI = zR*zR-zI*zI+x, 2*zR*zI+y
+		r := math.Pow(zR*zR+zI*zI, power/2)
+		theta := math.Atan2(zI, zR) * power
+		zR, zI = r*math.Cos(theta)+x, r*math.Sin(theta)+y
 		if zR*zR+zI*zI > 4 {
 			return i
 		}
@@ -39,19 +43,6 @@ func tricorn(x, y float64, maxIter int) int {
 	zR, zI := 0.0, 0.0
 	for i := 0; i < maxIter; i++ {
 		zR, zI = zR*zR-zI*zI+x, -2*zR*zI+y
-		if zR*zR+zI*zI > 4 {
-			return i
-		}
-	}
-	return maxIter
-}
-
-func multibrot(x, y float64, power float64, maxIter int) int {
-	zR, zI := 0.0, 0.0
-	for i := 0; i < maxIter; i++ {
-		r := math.Pow(zR*zR+zI*zI, power/2)
-		theta := math.Atan2(zI, zR) * power
-		zR, zI = r*math.Cos(theta)+x, r*math.Sin(theta)+y
 		if zR*zR+zI*zI > 4 {
 			return i
 		}
